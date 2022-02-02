@@ -118,16 +118,8 @@ Facter.add(:self_service, type: :aggregate) do
   chunk(:S0016) do
     # Puppetserver
     next unless PuppetSelfService.primary? || PuppetSelfService.compiler? || PuppetSelfService.legacy_compiler? || PuppetSelfService.replica?
-    time_now = Time.now - Puppet.settings['runinterval']
     log_path = File.dirname(Puppet.settings['logdir'].to_s) + '/puppetserver/'
-    error_pid_log = Dir.glob(log_path + '*_err_pid*.log').find { |f| time_now.to_i < File.mtime(f).to_i }
-    if error_pid_log.nil?
-      log_file = log_path + 'puppetserver.log'
-      search_for_error = `tail -n 250 #{log_file} | grep 'java.lang.OutOfMemoryError'`
-      { S0016: search_for_error.empty? }
-    else
-      { S0016: false }
-    end
+    { S0016: PuppetSelfService.read_file(log_path, 'java.lang.OutOfMemoryError', 250, Puppet.settings['runinterval'].to_i, Time.now.to_i) }
   end
 
   chunk(:S0017) do

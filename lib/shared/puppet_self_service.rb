@@ -145,4 +145,37 @@ module PuppetSelfService
     stat = Sys::Filesystem.stat(path)
     (stat.blocks_available.to_f / stat.blocks.to_f * 100).to_i
   end
+
+  # Check if a file includes a certain phrase
+  # @param path [String] Path to a file or to a directory
+  # @param phrase_to_find [String] Word to search for
+  # @param number_of_lines [Integer] How many lines to search through
+  # @param time_from [Integer] What time to search last modified file in the folder from - time must be converted to .to_i
+  # @param time_to [Integer] What time to search from the time_from parameter - time must be converted to .to_i
+  # @return [Boolean] True if found, False if not
+  def self.read_file(path, phrase_to_find, number_of_lines = nil, time_from = nil, time_to = nil)
+    accepted_formats = ['.log', '.txt']
+    if phrase_to_find.empty? && path.blank?
+      return false
+    end
+
+    formats = accepted_formats.include?(File.extname(path))
+    lines = number_of_lines.nil?
+    time = time_from.nil? && time_to.nil?
+
+    if formats && lines
+      `tail #{path} -n #{number_of_lines} | grep #{phrase_to_find}`.empty?
+    elsif formats
+      `grep #{phrase_to_find} #{path}`.empty?
+    elsif lines && time
+      log_check = (Dir.glob(path).find { |f| f.between?(time_from.to_i, time_to.to_i) }).to_s
+      unless log_check.nil?
+        `grep #{phrase_to_find} #{log_check}`.empty?
+      end
+    elsif lines
+      `tail #{path} -n #{number_of_lines} | grep #{phrase_to_find}`.empty?
+    else
+      false
+    end
+  end
 end
